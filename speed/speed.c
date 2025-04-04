@@ -1,34 +1,56 @@
 #include "speed.h"
 
-
-const uint16_t line_count = 11*90;    // ±àÂëÆ÷ÏßÊı*¼õËÙ±È£¨¸ù¾İÊµ¼ÊĞŞ¸Ä£©
-const uint16_t time_interval_ms = 10; // ²ÉÑù¼ä¸ô10ms
+/*æµ‹é€Ÿç›¸å…³å˜é‡*/
+const uint16_t line_count = 11*90;    // ç¼–ç å™¨çº¿æ•°*å‡é€Ÿæ¯”ï¼ˆæ ¹æ®å®é™…ä¿®æ”¹ï¼‰
+const uint16_t time_interval_ms = 10; // é‡‡æ ·é—´éš”10ms
 float rpm = 0; 
 
-int fputc(int ch, FILE *f)				 // ÖØĞ´fputcº¯Êı£¬Ê¹printfµÄÊä³öÓÉUART1ÊµÏÖ,  ÕâÀïÊ¹ÓÃUSART1
-{			// ×¢Òâ£¬²»ÄÜÊ¹ÓÃHAL_UART_Transmit_IT(), »úÖÆÉÏ»á³åÍ»; ÒòÎªµ÷ÓÃÖĞ¶Ï·¢ËÍº¯Êıºó£¬Èç¹ûÉÏ´Î·¢ËÍ»¹ÔÚ½øĞĞ£¬¾Í»áÖ±½Ó·µ»Ø£¡
-			// Ëü²»»á¼ÌĞøµÈ´ı£¬Ò²²»»áÊı¾İÌîÈë¶ÓÁĞÅÅ¶Ó·¢ËÍ 
-			// Ê¹ÓÃHAL_UART_Transmit£¬ÏàµÈÓÚUSART1->DR = ch, º¯ÊıÄÚ²¿¼ÓÁË¼òµ¥µÄ³¬Ê±ÅĞ¶Ï(ms)£¬·ÀÖ¹¿¨ËÀ
-	  HAL_UART_Transmit(&huart1, (uint8_t *)&ch, 1, 0x02);  
-    return ch;
+/*æµ‹ç”µæµç›¸å…³å˜é‡*/
+uint16_t raw_value=0;    //adcæ•°å€¼ï¼ˆ0-4096ï¼‰
+float voltage=0;         //ç”µå‹æ•°å€¼ï¼ˆ0-3.3ï¼‰
+/*******************************************************************************************/
+
+/*è¾“å‡ºé‡å®šå‘*/
+int fputc(int ch, FILE *f)	// é‡å†™fputcå‡½æ•°ï¼Œä½¿printfçš„è¾“å‡ºç”±UART1å®ç°,  è¿™é‡Œä½¿ç”¨USART1
+{	// æ³¨æ„ï¼Œä¸èƒ½ä½¿ç”¨HAL_UART_Transmit_IT(), æœºåˆ¶ä¸Šä¼šå†²çª; å› ä¸ºè°ƒç”¨ä¸­æ–­å‘é€å‡½æ•°åï¼Œå¦‚æœä¸Šæ¬¡å‘é€è¿˜åœ¨è¿›è¡Œï¼Œå°±ä¼šç›´æ¥è¿”å›ï¼
+	// å®ƒä¸ä¼šç»§ç»­ç­‰å¾…ï¼Œä¹Ÿä¸ä¼šæ•°æ®å¡«å…¥é˜Ÿåˆ—æ’é˜Ÿå‘é€ 
+	// ä½¿ç”¨HAL_UART_Transmitï¼Œç›¸ç­‰äºUSART1->DR = ch, å‡½æ•°å†…éƒ¨åŠ äº†ç®€å•çš„è¶…æ—¶åˆ¤æ–­(ms)ï¼Œé˜²æ­¢å¡æ­»
+	HAL_UART_Transmit(&huart1, (uint8_t *)&ch, 1, 0x02);  
+    	return ch;
 } 
 
 
-// TIM2ÖĞ¶Ï´¦Àíº¯Êı£¨×ªËÙ¼ÆËãºÍ·¢ËÍ£©
-void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef *htim) 
+
+/*adcè¯»å–ç”µæµ*/
+uint16_t Read_ADC_Value(ADC_HandleTypeDef *hadc)            //adcæ•°å€¼ï¼ˆ0-4096ï¼‰
 {
-    if (htim->Instance == TIM2) {
-			
-        static int16_t last_cnt = 0;                   //¾Ö²¿±äÁ¿,³ÌĞòÆô¶¯Ê±³õÊ¼»¯£¬º¯Êıµ÷ÓÃ½áÊøºóÖµ±£Áô,Ö±µ½³ÌĞò½áÊø¡£
-        int16_t current_cnt = TIM3->CNT;               //¶ÁÈ¡¼ÆÊı¼Ä´æÆ÷
-        int16_t delta = current_cnt - last_cnt;        //¼ÆËã²îÖµdelta
-        last_cnt = current_cnt;                        //±£ÁôÉÏÒ»´Î¼ÆÊıÖµ
-			
-        // ¼ÆËã×ªËÙ£¨ÕûÊıÔËËã±ÜÃâ¸¡µã£©
-        int32_t rpm_x10 = (delta * 1500*10) / line_count; // À©´ó10±¶±£Áô1Î»Ğ¡Êı¹«Ê½£º10msµÄÂö³åÊı£¨delta£©/4£¨±¶Æµ£©*100£¨Ò»Ãë£©*60£¨Ò»·Ö£©=1500
-        // Í¨¹ı´®¿Ú·¢ËÍ×ªËÙ
-        //printf("%3d.%d,%d,%d\r\n", rpm, decimal,120,10);
-			  rpm = rpm_x10/10 + rpm_x10%10*0.1;
-    }
-		
+  HAL_ADC_Start(hadc);                          // å¯åŠ¨è½¬æ¢
+  if (HAL_ADC_PollForConversion(hadc, 100) == HAL_OK)
+  {
+    return HAL_ADC_GetValue(hadc);              // è¿”å›åŸå§‹å€¼ï¼ˆ0-4095ï¼‰
+  }
+  return 0xFFFF; // è¶…æ—¶æˆ–é”™è¯¯
 }
+
+float Convert_To_Voltage(uint16_t adc_value)        //ç”µå‹æ•°å€¼ï¼ˆ0-3.3ï¼‰
+{
+  return (adc_value * 3.3f) / 4095.0f;         // è½¬æ¢ä¸ºç”µå‹å€¼ï¼ˆå‡è®¾Vref=3.3Vï¼‰
+}
+
+/*æµ‹é€Ÿç›¸å…³å‡½æ•°*/
+float GetSpeed(void)
+{
+    static int16_t last_cnt = 0;                   //å±€éƒ¨å˜é‡,ç¨‹åºå¯åŠ¨æ—¶åˆå§‹åŒ–ï¼Œå‡½æ•°è°ƒç”¨ç»“æŸåå€¼ä¿ç•™,ç›´åˆ°ç¨‹åºç»“æŸã€‚
+    int16_t current_cnt = TIM3->CNT;               //è¯»å–è®¡æ•°å¯„å­˜å™¨
+    int16_t delta = current_cnt - last_cnt;        //è®¡ç®—å·®å€¼delta
+    last_cnt = current_cnt;                        //ä¿ç•™ä¸Šä¸€æ¬¡è®¡æ•°å€¼
+			
+    // è®¡ç®—è½¬é€Ÿï¼ˆæ•´æ•°è¿ç®—é¿å…æµ®ç‚¹ï¼‰
+    int32_t rpm_x10 = (delta * 1500*10) / line_count; // æ‰©å¤§10å€ä¿ç•™1ä½å°æ•°å…¬å¼ï¼š10msçš„è„‰å†²æ•°ï¼ˆdeltaï¼‰/4ï¼ˆå€é¢‘ï¼‰*100ï¼ˆä¸€ç§’ï¼‰*60ï¼ˆä¸€åˆ†ï¼‰=1500
+    // é€šè¿‡ä¸²å£å‘é€è½¬é€Ÿ
+    //printf("%3d.%d,%d,%d\r\n", rpm, decimal,120,10);
+    return  rpm_x10/10 + rpm_x10%10*0.1;
+}
+
+
+
