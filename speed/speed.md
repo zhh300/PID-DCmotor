@@ -91,13 +91,11 @@
     void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef *htim) 
     {
         if (htim->Instance == TIM2)
-    		{ 
-    			rpm = GetSpeed();
-    
-    			raw_value = Read_ADC_Value(&hadc1);
-    		  voltage = Convert_To_Voltage(raw_value);
-    		}
-    		
+    	{ 
+    		rpm = GetSpeed();
+    		raw_value = Read_ADC_Value(&hadc1);
+    		voltage = Convert_To_Voltage(raw_value);
+    	}
     }
 
 ​
