@@ -1,29 +1,29 @@
 # PID-DCmotor
 有刷直流电机PID控制相关程序
 ​
-#测速部分
-##1.CubeMX配置
-###​​配置编码器接口（TIM3）
+# 测速部分
+## 1.CubeMX配置
+###​​ 配置编码器接口（TIM3）
 
     模式：Encoder Mode（TI1和TI2）
     引脚：根据硬件连接选择（如PA6和PA7）
     分频（Prescaler）：0
     自动重装载值（AutoReload）：65535（0xFFFF）
     编码器模式：TI1和TI2边沿计数（四倍频）
-###配置定时器中断（TIM2）​
+### 配置定时器中断（TIM2）​
 
     时钟源：内部时钟
     分频（Prescaler）：7199（72MHz / 7200 = 10kHz）
     自动重装载值（AutoReload）：99（10kHz / 100 = 100Hz，即10ms中断）
     启用中断：开启TIM2更新中断
-###配置串口（USART1）​
+### 配置串口（USART1）​
 
     波特率：115200
     数据位：8
     停止位：1
     无校验
-##2.代码实现
-###1.printf重定义
+## 2.代码实现
+### 1.printf重定义
 
     int fputc(int ch, FILE *f)// 重写fputc函数，使printf的输出由UART1实现,  这里使用USART1
     {
@@ -35,7 +35,7 @@
         return ch;
     } 
 
-##2.速度计算
+## 2.速度计算
 
     const uint16_t line_count = 11*90;    // 编码器线数*减速比（根据实际修改）
     const uint16_t time_interval_ms = 10; // 采样间隔10ms
@@ -55,8 +55,7 @@
             // 通过串口发送转速
             //printf("%3d.%d,%d,%d\r\n", rpm, decimal,120,10);
     	    rpm = rpm_x10/10 + rpm_x10%10*0.1;
-        }
-    		
+        }		
     }
 
 
