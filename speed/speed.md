@@ -36,29 +36,69 @@
     } 
 
 ### 2.2速度计算
-
     const uint16_t line_count = 11*90;    // 编码器线数*减速比（根据实际修改）
     const uint16_t time_interval_ms = 10; // 采样间隔10ms
-    float rpm = 0; 
+    float rpm = 0;
+        float GetSpeed(void)
+    {
+    		static int16_t last_cnt = 0;                   //局部变量,程序启动时初始化，函数调用结束后值保留,直到程序结束。
+        int16_t current_cnt = TIM3->CNT;               //读取计数寄存器
+        int16_t delta = current_cnt - last_cnt;        //计算差值delta
+        last_cnt = current_cnt;                        //保留上一次计数值
+    			
+        // 计算转速（整数运算避免浮点）
+        int32_t rpm_x10 = (delta * 1500*10) / line_count; // 扩大10倍保留1位小数公式：10ms的脉冲数（delta）/4（倍频）*100（一秒）*60（一分）=1500
+        // 通过串口发送转速
+        //printf("%3d.%d,%d,%d\r\n", rpm, decimal,120,10);
+    		return  rpm_x10/10 + rpm_x10%10*0.1;
+    }
+# 测电流部分
+## CubeMX配置
+### ​​1.配置时钟​​：
+    设置系统时钟（如使用外部晶振，配置为72MHz）。
+    ADC时钟分频至≤14MHz（例如APB2为72MHz时，分频系数设为6，ADC时钟为12MHz）。
+​​### 2.ADC引脚配置​​：
+
+    选择ADC通道对应的引脚（如PA0对应ADC1_IN0），设置为模拟输入（Analog）。
+### 3.ADC参数设置​​：
+    ​​Mode​​：Independent mode
+    ​​Scan Conversion Mode​​：Disabled（单通道不需要扫描）
+    ​​Continuous Conversion Mode​​：Disabled（单次转换）
+    ​​End of Conversion Selection​​：EOC flag at the end of conversion
+    ​​Data Alignment​​：Right alignment（数据右对齐）
+    ​​Sampling Time​​：根据需求选择（如55.5 cycles）
+## 代码部分
+### ADC校准放在main初始化部分
+    HAL_ADCEx_Calibration_Start(&hadc1); // ADC校准
+### adc读取函数
+    uint16_t Read_ADC_Value(ADC_HandleTypeDef *hadc)
+    {
+      HAL_ADC_Start(hadc);                          // 启动转换
+      if (HAL_ADC_PollForConversion(hadc, 100) == HAL_OK)
+      {
+        return HAL_ADC_GetValue(hadc);              // 返回原始值（0-4095）
+      }
+      return 0xFFFF; // 超时或错误
+    }
+    
+    float Convert_To_Voltage(uint16_t adc_value)
+    {
+      return (adc_value * 3.3f) / 4095.0f;         // 转换为电压值（假设Vref=3.3V）
+    }
+# 调用部分
+## 定时器调用
     // TIM2中断处理函数（转速计算和发送）
     void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef *htim) 
     {
-        if (htim->Instance == TIM2) {
-    			
-            static int16_t last_cnt = 0;                   //局部变量,程序启动时初始化，函数调用结束后值保留,直到程序结束。
-            int16_t current_cnt = TIM3->CNT;               //读取计数寄存器
-            int16_t delta = current_cnt - last_cnt;        //计算差值delta
-            last_cnt = current_cnt;                        //保留上一次计数值
-    			
-            // 计算转速（整数运算避免浮点）
-            int32_t rpm_x10 = (delta * 1500*10) / line_count; // 扩大10倍保留1位小数公式：10ms的脉冲数（delta）/4（倍频）*100（一秒）*60（一分）=1500
-            // 通过串口发送转速
-            //printf("%3d.%d,%d,%d\r\n", rpm, decimal,120,10);
-    	    rpm = rpm_x10/10 + rpm_x10%10*0.1;
-        }		
+        if (htim->Instance == TIM2)
+    		{ 
+    			rpm = GetSpeed();
+    
+    			raw_value = Read_ADC_Value(&hadc1);
+    		  voltage = Convert_To_Voltage(raw_value);
+    		}
+    		
     }
-
-
 
 ​
 
