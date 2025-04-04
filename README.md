@@ -35,7 +35,7 @@
         return ch;
     } 
 
-## 2.2速度计算
+### 2.2速度计算
 
     const uint16_t line_count = 11*90;    // 编码器线数*减速比（根据实际修改）
     const uint16_t time_interval_ms = 10; // 采样间隔10ms
