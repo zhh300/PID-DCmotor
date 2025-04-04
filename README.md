@@ -23,7 +23,7 @@
     停止位：1
     无校验
 ## 2.代码实现
-### printf重定义
+### 2.1printf重定义
 
     int fputc(int ch, FILE *f)// 重写fputc函数，使printf的输出由UART1实现,  这里使用USART1
     {
@@ -35,7 +35,7 @@
         return ch;
     } 
 
-## 速度计算
+## 2.2速度计算
 
     const uint16_t line_count = 11*90;    // 编码器线数*减速比（根据实际修改）
     const uint16_t time_interval_ms = 10; // 采样间隔10ms
